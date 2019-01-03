@@ -22,12 +22,13 @@ contract IEF_Betting {
         betId = 0;
     }
     
-    function createBet(uint256 ethAmount, uint256 latestClosage) public returns (uint256) {
+    function createBet(uint256 ethAmount, uint256 maxDaysOpen) public returns (uint256) {
         betId++;
         Bet memory bet = Bet({
             betOwner:msg.sender,
             ETHAmount:ethAmount,
-            latestClosage:latestClosage,
+            // convert days to seconds
+            latestClosage: now + (maxDaysOpen * 24 * 60 * 60),
             isOpen:true
         });
         betting[betId] = bet;
@@ -35,6 +36,9 @@ contract IEF_Betting {
     }
     
     function placeBet(uint256 id) public returns (bool){
+        // TODO: return refunds if bet is already closed
+        // TODO: make payable function
+        
         require(betting[id].isOpen);
         // check if bet does not already exist
         require(betting[id].bets[msg.sender].timestamp > 0);
@@ -49,10 +53,15 @@ contract IEF_Betting {
     }
     
     function closeBet(uint256 id) public returns (bool) {
+        // TODO: determine the random number 0/1
+        // TODO: reward the winners of the bet with the ether
+        
         require(betting[id].isOpen);
         require(betting[id].betOwner == msg.sender);
         betting[id].isOpen = false;
         return true;
     }
     
+    
+    // TODO: create a timeout that automatically closes the bets
 }
