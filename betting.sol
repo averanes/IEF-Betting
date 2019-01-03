@@ -12,7 +12,9 @@ contract IEF_Betting {
         mapping(address => PlayerBet) bets;
         uint256 ETHAmount;
         uint256 latestClosage;
+        uint256 openedAt;
         bool isOpen;
+        int8 randomResult;
     }
     
     mapping(uint256 => Bet) public betting;
@@ -29,13 +31,15 @@ contract IEF_Betting {
             ETHAmount:ethAmount,
             // convert days to seconds
             latestClosage: now + (maxDaysOpen * 24 * 60 * 60),
-            isOpen:true
+            openedAt: now,
+            isOpen:true,
+            randomResult:-1
         });
         betting[betId] = bet;
         return betId;
     }
     
-    function placeBet(uint256 id) public returns (bool){
+    function placeBet(uint256 id, uint8 val) public returns (bool){
         // TODO: return refunds if bet is already closed
         // TODO: make payable function
         
@@ -44,7 +48,7 @@ contract IEF_Betting {
         require(betting[id].bets[msg.sender].timestamp > 0);
         
         PlayerBet memory bet = PlayerBet({
-           bet:1,
+           bet:val,
            timestamp:now
         });
         
