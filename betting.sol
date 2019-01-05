@@ -10,6 +10,7 @@ contract IEF_Betting {
     struct Bet {
         address betOwner;
         mapping(address => PlayerBet) bets;
+        address[] players; 
         uint256 ETHAmount;
         uint256 latestClosage;
         uint256 openedAt;
@@ -29,6 +30,7 @@ contract IEF_Betting {
         Bet memory bet = Bet({
             betOwner:msg.sender,
             ETHAmount:ethAmount,
+            players: new address[](0),
             // convert days to seconds
             latestClosage: now + (maxDaysOpen * 24 * 60 * 60),
             openedAt: now,
@@ -39,13 +41,14 @@ contract IEF_Betting {
         return betId;
     }
     
-    function placeBet(uint256 id, uint8 val) public returns (bool){
+    function placeBet(uint256 id, uint8 val) payable public returns (bool){
         // TODO: return refunds if bet is already closed
-        // TODO: make payable function
         
         require(betting[id].isOpen);
         // check if bet does not already exist
-        require(betting[id].bets[msg.sender].timestamp > 0);
+        require(betting[id].bets[msg.sender].timestamp == 0);
+        // check if the amount sent is the correct amount
+        require(msg.value == 1e18 * betting[id].ETHAmount);
         
         PlayerBet memory bet = PlayerBet({
            bet:val,
@@ -53,6 +56,9 @@ contract IEF_Betting {
         });
         
         betting[id].bets[msg.sender] = bet;
+        // add the player to the bet 
+        betting[id].players.push(msg.sender);
+        
         return true; 
     }
     
