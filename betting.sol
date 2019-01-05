@@ -8,9 +8,9 @@ contract IEF_Betting {
     }
     
     struct Bet {
-        address betOwner;
+        address payable betOwner;
         mapping(address => PlayerBet) bets;
-        address[] players; 
+        address payable [] players; 
         uint256 ETHAmount;
         uint256 latestClosage;
         uint256 earliestClosage;
@@ -19,6 +19,8 @@ contract IEF_Betting {
         int8 randomResult;
         uint256 totalAmountSetFor0;
         uint256 totalAmountSetFor1;
+        uint peopleOn0;
+        uint peopleOn1;
     }
     
     mapping(uint256 => Bet) public betting;
@@ -35,7 +37,7 @@ contract IEF_Betting {
         Bet memory bet = Bet({
             betOwner:msg.sender,
             ETHAmount:ethAmount,
-            players: new address[](0),
+            players: new address payable[](0),
             // convert days to seconds
             earliestClosage: now + (minHoursOpen * 60 * 60),
             latestClosage: now + (maxHoursOpen * 60 * 60),
@@ -43,7 +45,9 @@ contract IEF_Betting {
             isOpen:true,
             randomResult:-1,
             totalAmountSetFor0:0,
-            totalAmountSetFor1:0
+            totalAmountSetFor1:0,
+            peopleOn0:0,
+            peopleOn1:0
         });
         betting[betId] = bet;
         return betId;
@@ -74,23 +78,43 @@ contract IEF_Betting {
         
         if(val == 0) {
             betting[id].totalAmountSetFor0 = betting[id].totalAmountSetFor0 + betting[id].ETHAmount;
+            betting[id].peopleOn0++;
         } else {
             betting[id].totalAmountSetFor1 = betting[id].totalAmountSetFor1 + betting[id].ETHAmount;
-        
+            betting[id].peopleOn1++;
         }
         
         return true; 
     }
     
     function closeBet(uint256 id) public returns (bool) {
-        // TODO: determine the random number 0/1
-        // TODO: reward the winners of the bet with the ether
-        
         require(betting[id].isOpen);
         // bet cannot be closed before the earliestClosage
         require(now > betting[id].earliestClosage);
         require(betting[id].betOwner == msg.sender);
+        
         betting[id].isOpen = false;
+        
+        //BEGIN: random 0 1 generator
+        betting[id].randomResult = int8(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))) % 2);
+        //END: random 0 1 generator
+        
+        //BEGIN: rewards distribution
+        uint totalAmount = betting[id].totalAmountSetFor0 + betting[id].totalAmountSetFor1;
+        uint ownerPercentage = totalAmount / 100;
+        totalAmount -= ownerPercentage;
+        uint no_winners = betting[id].randomResult == 0 ? betting[id].peopleOn0 : betting[id].peopleOn1;
+        
+        betting[id].betOwner.transfer(ownerPercentage);
+        
+        for(uint index = 0; index < betting[id].players.length; index++) {
+            address payable current = betting[id].players[index];
+            
+            if(betting[id].bets[current].bet == uint(betting[id].randomResult))
+                current.transfer(totalAmount / no_winners);
+        }
+        //END: rewards distribution
+        
         return true;
     }
     
