@@ -17,8 +17,6 @@ contract IEF_Betting {
         uint256 openedAt;
         bool isOpen;
         int8 randomResult;
-        uint256 totalAmountSetFor0;
-        uint256 totalAmountSetFor1;
         uint peopleOn0;
         uint peopleOn1;
     }
@@ -44,8 +42,6 @@ contract IEF_Betting {
             openedAt: now,
             isOpen:true,
             randomResult:-1,
-            totalAmountSetFor0:0,
-            totalAmountSetFor1:0,
             peopleOn0:0,
             peopleOn1:0
         });
@@ -77,10 +73,8 @@ contract IEF_Betting {
         betting[id].players.push(msg.sender);
         
         if(val == 0) {
-            betting[id].totalAmountSetFor0 = betting[id].totalAmountSetFor0 + betting[id].ETHAmount;
             betting[id].peopleOn0++;
         } else {
-            betting[id].totalAmountSetFor1 = betting[id].totalAmountSetFor1 + betting[id].ETHAmount;
             betting[id].peopleOn1++;
         }
         
@@ -100,7 +94,8 @@ contract IEF_Betting {
         //END: random 0 1 generator
         
         //BEGIN: rewards distribution
-        uint totalAmount = betting[id].totalAmountSetFor0 + betting[id].totalAmountSetFor1;
+        //the vars totalAmountSetFor0-1 are unnecesaries
+        uint totalAmount = betting[id].players.length * (1e18 * betting[id].ETHAmount);
         uint ownerPercentage = totalAmount / 100;
         totalAmount -= ownerPercentage;
         uint no_winners = betting[id].randomResult == 0 ? betting[id].peopleOn0 : betting[id].peopleOn1;
