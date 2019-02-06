@@ -1,34 +1,79 @@
 pragma solidity ^0.5.2;
 
+
 contract IEF_Betting {
     
+    
     struct PlayerBet {
+        // which value the player bet on
         uint8 bet;
         uint256 timestamp;
     }
     
     struct Bet {
-        address payable betOwner;
+        // stores the address of the creator of the bet
+        address betOwner;
+        // stores all the bets made by any player
         mapping(address => PlayerBet) bets;
         address payable [] players; 
+        // the amount of the bet, this is set at the bet creation
         uint256 ETHAmount;
+        // the timestamp when the bet will be closed at the latest
         uint256 latestClosage;
+        // the timestamp for the earliest closage by the owner
         uint256 earliestClosage;
+        // the timestamp when the bet was created
         uint256 openedAt;
+        // can players still bet on this bet
         bool isOpen;
+        // the randomly generated result (0 or 1)
         int8 randomResult;
+        // number of persons who bet for 0
         uint peopleOn0;
+        // number of persons who bet for 1
         uint peopleOn1;
     }
     
-    mapping(uint256 => Bet) public betting;
-    uint256 public betId;
+     mapping(uint256 => Bet) public betting;
+     // contains the latest created betID:
+     uint256 public betId;
+    
+    // owners of the contract (and the betting system)
+    address payable [] public betOwners;
+    
+    modifier onlyOwner {
+        for(uint index = 0; index < betOwners.length; index++) {
+            if (msg.sender == betOwners[index]){
+                   _;
+                return;
+              }
+        }
+        revert(); 
+    }
+    
+    function addOwners(address payable user) onlyOwner public {
+        betOwners.push(user);
+    }
     
     constructor() public {
+        betOwners.push(msg.sender);
         betId = 0;
     }
     
-    function createBet(uint256 ethAmount, uint256 minHoursOpen, uint256 maxHoursOpen) public returns (uint256) {
+    function checkLastBetIdForOwner() onlyOwner view public returns (uint256 lastBetId) {
+        
+        for(uint256 x = betId; x > 0; x--) {
+            if(betting[x].betOwner == msg.sender){
+                
+                lastBetId = x;
+                return lastBetId;
+            }
+        }
+        
+       return lastBetId;
+    }
+    
+    function createBet(uint256 ethAmount, uint256 minHoursOpen, uint256 maxHoursOpen) onlyOwner public returns (uint256) {
         require(minHoursOpen < maxHoursOpen);
         
         betId++;
@@ -81,13 +126,10 @@ contract IEF_Betting {
         return true; 
     }
     
-    function closeBet(uint256 id) public returns (bool) {
+    function closeBet(uint256 id) onlyOwner public returns (bool) {
         require(betting[id].isOpen);
         // bet cannot be closed before the earliestClosage
         require(now > betting[id].earliestClosage);
-        require(betting[id].betOwner == msg.sender);
-        
-        betting[id].isOpen = false;
         
         //BEGIN: random 0 1 generator
         betting[id].randomResult = int8(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))) % 2);
@@ -100,7 +142,11 @@ contract IEF_Betting {
         totalAmount -= ownerPercentage;
         uint no_winners = betting[id].randomResult == 0 ? betting[id].peopleOn0 : betting[id].peopleOn1;
         
-        betting[id].betOwner.transfer(ownerPercentage);
+        //to divide the profit among all owners
+        ownerPercentage = ownerPercentage / betOwners.length;
+        for(uint index = 0; index < betOwners.length; index++) {
+             betOwners[index].transfer(ownerPercentage);
+        }
         
         for(uint index = 0; index < betting[id].players.length; index++) {
             address payable current = betting[id].players[index];
@@ -110,9 +156,9 @@ contract IEF_Betting {
         }
         //END: rewards distribution
         
+        betting[id].isOpen = false;
         return true;
     }
     
-    
-    // TODO: create a timeout that automatically closes the bets
+    // PD: Perfect timeout and random algorithm needs use a Oracle
 }
